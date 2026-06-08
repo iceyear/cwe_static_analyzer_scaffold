@@ -41,7 +41,7 @@ jobs:
       # Configure this as a repository secret named GEMINI_API_KEY.
       # Optional: set a repository variable GEMINI_MODEL, otherwise gemini-2.5-flash is used.
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemma-4-31b-it' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
