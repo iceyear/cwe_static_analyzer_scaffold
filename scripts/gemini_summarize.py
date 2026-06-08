@@ -49,7 +49,7 @@ def main() -> int:
         print(prompt)
         return 0
 
-    model = os.environ.get("GEMINI_MODEL", "gemma-4-31b-it")
+    model = os.environ.get("GEMINI_MODEL")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
