@@ -36,7 +36,11 @@ souffle: analyze
 
 # Generate or print a Gemini/Gemma prompt/report. Set GEMINI_API_KEY for API mode; GEMINI_MODEL defaults to gemma-4-31b-it.
 gemini: analyze
-    python scripts/gemini_summarize.py {{findings_json}} > analysis/gemini_report.md
+    if ! python scripts/gemini_summarize.py {{findings_json}} > analysis/gemini_report.md; then \
+      echo "# Gemini/Gemma report" > analysis/gemini_report.md; \
+      echo >> analysis/gemini_report.md; \
+      echo "Gemini/Gemma API failed, but the static analyzer artifacts were generated successfully. Check the job log for API details." >> analysis/gemini_report.md; \
+    fi
     cat analysis/gemini_report.md
 
 # One-command classroom demo: analyzer report + Datalog result

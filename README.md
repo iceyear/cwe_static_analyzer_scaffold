@@ -92,3 +92,7 @@ just gemini    # 生成 Gemini/Gemma 中文报告或 prompt
 just demo      # 课堂演示入口
 just clean     # 清理生成物
 ```
+
+## Gemini/Gemma API note
+
+`just gemini` defaults to `gemma-4-31b-it` when `GEMINI_MODEL` is not set. It uses the REST-compatible JSON generation fields `responseMimeType` and `responseJsonSchema` first, then falls back to prompt-only JSON if a specific model rejects structured output. The deprecated/incorrect `generationConfig.responseFormat.text.mimeType = "application/json"` form is intentionally not used.

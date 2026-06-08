@@ -149,26 +149,19 @@ def main() -> int:
         print(prompt_markdown(prompt, f"未设置 GEMINI_API_KEY；默认模型会是 {model}"))
         return 0
 
+    # Do not use generationConfig.responseFormat here.
+    # In the REST API that field is for modality-specific response formats; its
+    # text.mimeType enum rejects the ordinary MIME string "application/json".
+    # For JSON text generation, the most compatible REST fields are
+    # responseMimeType + responseJsonSchema.  A snake_case variant is kept as a
+    # compatibility fallback because Google examples have historically shown
+    # both spellings in REST snippets.
+    contents = [{"role": "user", "parts": [{"text": prompt}]}]
     attempts: list[tuple[str, dict[str, Any]]] = [
         (
-            "structured responseFormat",
+            "responseJsonSchema",
             {
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "responseFormat": {
-                        "text": {
-                            "mimeType": "application/json",
-                            "schema": SCHEMA,
-                        }
-                    },
-                    "temperature": 0.2,
-                },
-            },
-        ),
-        (
-            "responseJsonSchema fallback",
-            {
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "contents": contents,
                 "generationConfig": {
                     "responseMimeType": "application/json",
                     "responseJsonSchema": SCHEMA,
@@ -177,9 +170,20 @@ def main() -> int:
             },
         ),
         (
-            "json mime fallback",
+            "response_json_schema compatibility",
             {
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "contents": contents,
+                "generation_config": {
+                    "response_mime_type": "application/json",
+                    "response_json_schema": SCHEMA,
+                    "temperature": 0.2,
+                },
+            },
+        ),
+        (
+            "json mime only",
+            {
+                "contents": contents,
                 "generationConfig": {
                     "responseMimeType": "application/json",
                     "temperature": 0.2,
@@ -187,9 +191,9 @@ def main() -> int:
             },
         ),
         (
-            "plain fallback",
+            "plain prompt fallback",
             {
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "contents": contents,
                 "generationConfig": {"temperature": 0.2},
             },
         ),
