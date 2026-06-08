@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated analysis outputs
+analysis/findings.json
+analysis/custom-cwe.sarif
+analysis/facts/
+analysis/datalog/
+analysis/gemini_report.md
+
+# Keep a sample report in the repository for coursework demos
+!analysis/report.md
+
+# Souffle generated files
+*.csv
+*.facts.tmp
+*.prof
+*.log
+
+# CodeQL
+codeql-database/
+*.bqrs
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Secrets
+.env
+*.key

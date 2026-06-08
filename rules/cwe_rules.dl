@@ -1,0 +1,37 @@
+// Souffle Datalog rules for the demo analyzer.
+// Run after scripts/analyze_cwe.py has generated analysis/facts/*.facts:
+//   souffle -F analysis/facts -D analysis/datalog rules/cwe_rules.dl
+
+.decl array_decl(file:symbol, line:number, var:symbol, size:number)
+.input array_decl
+
+.decl unbounded_read(file:symbol, line:number, var:symbol, api:symbol)
+.input unbounded_read
+
+.decl unsafe_call(file:symbol, line:number, api:symbol, cwe:symbol)
+.input unsafe_call
+
+.decl untrusted_int(file:symbol, line:number, var:symbol, api:symbol)
+.input untrusted_int
+
+.decl var_as_bound(file:symbol, line:number, var:symbol, array:symbol, cap:number)
+.input var_as_bound
+
+.decl finding(file:symbol, line:number, cwe:symbol, rule:symbol, message:symbol)
+.output finding
+
+finding(file, line, "CWE-120/CWE-787", "datalog-unbounded-char-read", msg) :-
+  unbounded_read(file, line, var, api),
+  msg = cat(cat(cat("unbounded ", api), " read into fixed char buffer: "), var).
+
+finding(file, line, "CWE-120/CWE-787", "datalog-unsafe-strcpy", "strcpy may overflow destination buffer") :-
+  unsafe_call(file, line, "strcpy", _).
+
+finding(file, line, "CWE-20/CWE-787", "datalog-input-bound", msg) :-
+  var_as_bound(file, line, var, array, cap),
+  msg = cat(cat(cat(cat("unvalidated input ", var), " controls index into "), array), cat(" capacity=", to_string(cap))).
+
+finding(file, line, cwe, "datalog-unsafe-api", msg) :-
+  unsafe_call(file, line, api, cwe),
+  api != "strcpy",
+  msg = cat("security-sensitive API call: ", api).
