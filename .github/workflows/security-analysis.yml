@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 env:
-  # Opt in early to the Node.js 24 runtime for JavaScript actions.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 permissions:
@@ -19,18 +18,13 @@ jobs:
     name: CodeQL C/C++
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+      - uses: actions/checkout@v5
+      - uses: github/codeql-action/init@v4
         with:
           languages: c-cpp
           build-mode: none
           config-file: ./.github/codeql/codeql-config.yml
-
-      - name: Analyze with CodeQL
-        uses: github/codeql-action/analyze@v4
+      - uses: github/codeql-action/analyze@v4
         with:
           category: "/language:c-cpp"
 
@@ -38,28 +32,27 @@ jobs:
     name: Coursework CWE analyzer
     runs-on: ubuntu-latest
     env:
-      # Configure this as a repository secret named GEMINI_API_KEY.
-      # Optional: set a repository variable GEMINI_MODEL, otherwise gemini-2.5-flash is used.
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemma-4-31b-it' }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.x"
+          python-version: "3.12"
 
       - name: Install just
         run: |
-          sudo apt-get update
-          sudo apt-get install -y just || cargo install just --locked
+          if ! command -v just >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y just || cargo install just
+          fi
+          just --version
 
       - name: Run coursework analyzer through just
         run: just analyze
 
-      - name: Generate Gemini report if API key is configured
+      - name: Generate Gemini/Gemma report if API key is configured
         if: ${{ env.GEMINI_API_KEY != '' }}
         run: just gemini
 
@@ -80,12 +73,16 @@ jobs:
             echo
             echo "---"
             echo
+            echo "## Gemini/Gemma assisted explanation"
+            echo
             if [[ -f analysis/gemini_report.md ]]; then
-              echo "## Gemini assisted explanation"
-              echo
               cat analysis/gemini_report.md
+            elif [[ -n "${GEMINI_API_KEY:-}" ]]; then
+              echo "_Gemini/Gemma report was requested but was not generated. Check the job log for API details._"
             else
-              echo '_Gemini report was not generated. Add a repository secret named `GEMINI_API_KEY` to enable it._'
+              echo '_Gemini/Gemma report was skipped because repository secret `GEMINI_API_KEY` is not configured._'
+              echo
+              echo 'Default model when enabled: `gemma-4-31b-it`. Override with repository variable `GEMINI_MODEL`.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 

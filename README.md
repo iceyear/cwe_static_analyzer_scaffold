@@ -1,6 +1,6 @@
 # CWE 静态分析大作业脚手架
 
-在 GitHub Actions 上运行 CodeQL + 一个可解释的课程用 CWE 静态分析器，并可选导出 Soufflé Datalog facts / Gemini 中文报告。
+在 GitHub Actions 上运行 CodeQL + 一个可解释的课程用 CWE 静态分析器，并可选导出 Soufflé Datalog facts / Gemini-Gemma 中文报告。
 
 ## 本地运行：推荐使用 just
 
@@ -39,17 +39,15 @@ just souffle
 
 ## GitHub Actions
 
-把整个目录 push 到 GitHub。Actions 当前使用 `actions/checkout@v5`、`actions/setup-python@v6`、`github/codeql-action/*@v4` 和 `actions/upload-artifact@v6`，用于规避 Node.js 20 / CodeQL Action v3 的弃用警告。Actions 会执行：
+把整个目录 push 到 GitHub。Actions 会执行：
 
 1. CodeQL C/C++，使用 `build-mode: none`，避免 Windows 头文件导致 Linux 构建失败。
 2. 自定义课程分析器，输出 JSON、Markdown、SARIF 和 Datalog facts。
-3. 把 `analysis/report.md` 直接写入 GitHub Actions 的 Job Summary。
-4. 如果配置了 `GEMINI_API_KEY`，自动生成 `analysis/gemini_report.md` 并追加到 Job Summary。
+3. 如果配置了 `GEMINI_API_KEY`，生成 Gemini/Gemma 辅助中文解释报告。
+4. 把 `analysis/report.md` 和 `analysis/gemini_report.md` 写入 GitHub Actions Summary。
 5. 上传 SARIF 到 GitHub Code Scanning 页面。
 
-## Gemini 报告
-
-本地运行：
+## Gemini / Gemma 报告
 
 ```bash
 # 无 API key：打印可复制的 prompt
@@ -60,12 +58,29 @@ export GEMINI_API_KEY="..."
 just gemini
 ```
 
-GitHub Actions 运行：
+默认模型是：
 
-1. 在仓库 `Settings → Secrets and variables → Actions → New repository secret` 添加 `GEMINI_API_KEY`。
-2. 可选：在 `Variables` 添加 `GEMINI_MODEL`，例如 `gemini-2.5-flash`。
-3. CI 会在密钥存在时执行 `just gemini`，并把 `analysis/gemini_report.md` 追加到 Actions Summary。
-4. 如果没有密钥，CI 会跳过 Gemini，不会导致构建失败。
+```bash
+GEMINI_MODEL=gemma-4-31b-it
+```
+
+你可以覆盖它：
+
+```bash
+export GEMINI_MODEL="gemini-2.5-flash"
+just gemini
+```
+
+GitHub Actions 中推荐这样配置：
+
+- Repository secret: `GEMINI_API_KEY`
+- Repository variable，可选: `GEMINI_MODEL`
+
+如果 Gemini/Gemma API 返回 400、429、500 等错误，脚本默认会 fail-open：生成一份可复制 prompt 的 Markdown，而不会让课程演示 CI 直接失败。若你想让 API 错误直接失败，可设置：
+
+```bash
+export GEMINI_STRICT=1
+```
 
 ## 常用 just 命令
 
@@ -73,7 +88,7 @@ GitHub Actions 运行：
 just analyze   # 生成 findings.json、report.md、custom-cwe.sarif 和 facts
 just report    # 打印 Markdown 报告
 just souffle   # 运行 Soufflé Datalog 推理
-just gemini    # 生成 Gemini 中文报告或 prompt
+just gemini    # 生成 Gemini/Gemma 中文报告或 prompt
 just demo      # 课堂演示入口
 just clean     # 清理生成物
 ```

@@ -34,7 +34,7 @@ souffle: analyze
     souffle -F {{facts_dir}} -D {{datalog_dir}} rules/cwe_rules.dl
     cat {{datalog_dir}}/finding.csv
 
-# Generate or print a Gemini prompt/report. Set GEMINI_API_KEY for API mode.
+# Generate or print a Gemini/Gemma prompt/report. Set GEMINI_API_KEY for API mode; GEMINI_MODEL defaults to gemma-4-31b-it.
 gemini: analyze
     python scripts/gemini_summarize.py {{findings_json}} > analysis/gemini_report.md
     cat analysis/gemini_report.md
