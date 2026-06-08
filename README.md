@@ -1,6 +1,6 @@
 # CWE 静态分析大作业脚手架
 
-目标：在 GitHub Actions 上运行 CodeQL + 一个可解释的课程用 CWE 静态分析器，并可选导出 Soufflé Datalog facts / Gemini 中文报告。
+在 GitHub Actions 上运行 CodeQL + 一个可解释的课程用 CWE 静态分析器，并可选导出 Soufflé Datalog facts / Gemini 中文报告。
 
 ## 本地运行：推荐使用 just
 
@@ -55,7 +55,6 @@ just gemini
 export GEMINI_API_KEY="..."
 just gemini
 ```
-
 
 ## 常用 just 命令
 
