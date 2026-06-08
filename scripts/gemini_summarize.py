@@ -2,6 +2,7 @@
 """Optional Gemini report generator.
 Set GEMINI_API_KEY and run:
   python scripts/gemini_summarize.py analysis/findings.json > analysis/gemini_report.md
+Optional: set GEMINI_MODEL, defaults to gemini-2.5-flash.
 If no API key is set, it prints the exact prompt you can paste into Gemini.
 """
 from __future__ import annotations
@@ -48,12 +49,17 @@ def main() -> int:
         print(prompt)
         return 0
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it:generateContent?key={api_key}"
+    model = os.environ.get("GEMINI_MODEL", "gemma-4-31b-it")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
-            "response_mime_type": "application/json",
-            "response_json_schema": SCHEMA
+            "responseFormat": {
+                "text": {
+                    "mimeType": "application/json",
+                    "schema": SCHEMA
+                }
+            }
         }
     }
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={"Content-Type": "application/json"})

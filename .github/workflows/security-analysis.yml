@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  # Opt in early to the Node.js 24 runtime for JavaScript actions.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 permissions:
   contents: read
   security-events: write
@@ -15,37 +19,91 @@ jobs:
     name: CodeQL C/C++
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
         with:
           languages: c-cpp
           build-mode: none
           config-file: ./.github/codeql/codeql-config.yml
-      - uses: github/codeql-action/analyze@v3
+
+      - name: Analyze with CodeQL
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:c-cpp"
 
   custom-cwe:
     name: Coursework CWE analyzer
     runs-on: ubuntu-latest
+    env:
+      # Configure this as a repository secret named GEMINI_API_KEY.
+      # Optional: set a repository variable GEMINI_MODEL, otherwise gemini-2.5-flash is used.
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.x"
-      - uses: extractions/setup-just@v4
+
+      - name: Install just
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just || cargo install just --locked
+
       - name: Run coursework analyzer through just
         run: just analyze
+
+      - name: Generate Gemini report if API key is configured
+        if: ${{ env.GEMINI_API_KEY != '' }}
+        run: just gemini
+
+      - name: Add CWE report to GitHub Actions summary
+        if: always()
+        run: |
+          {
+            echo "# Coursework CWE analyzer"
+            echo
+            echo "## Static analyzer report"
+            echo
+            if [[ -f analysis/report.md ]]; then
+              cat analysis/report.md
+            else
+              echo "_analysis/report.md was not generated._"
+            fi
+
+            echo
+            echo "---"
+            echo
+            if [[ -f analysis/gemini_report.md ]]; then
+              echo "## Gemini assisted explanation"
+              echo
+              cat analysis/gemini_report.md
+            else
+              echo '_Gemini report was not generated. Add a repository secret named `GEMINI_API_KEY` to enable it._'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload custom SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('analysis/custom-cwe.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: analysis/custom-cwe.sarif
+
       - name: Upload analysis artifacts
-        uses: actions/upload-artifact@v4
+        if: always()
+        uses: actions/upload-artifact@v6
         with:
           name: coursework-cwe-analysis
           path: |
             analysis/findings.json
             analysis/report.md
+            analysis/gemini_report.md
             analysis/custom-cwe.sarif
             analysis/facts/*.facts
+          if-no-files-found: warn
