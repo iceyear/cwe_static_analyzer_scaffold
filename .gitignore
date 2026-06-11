@@ -10,6 +10,7 @@ analysis/custom-cwe.sarif
 analysis/facts/
 analysis/datalog/
 analysis/gemini_report.md
+analysis/repair/
 
 # Keep a sample report in the repository for coursework demos
 !analysis/report.md

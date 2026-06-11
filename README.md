@@ -16,8 +16,6 @@
 | Java | `Runtime.exec`, `ProcessBuilder`, SQL 拼接, `ObjectInputStream/readObject`, `MessageDigest(MD5/SHA-1)`, `Random`, 硬编码密钥, 用户输入文件路径 | CWE-78, CWE-89, CWE-502, CWE-327, CWE-338, CWE-798, CWE-22 |
 | Python | `os.system`, `subprocess(..., shell=True)`, `eval/exec`, `pickle/yaml.load`, 动态 SQL, `hashlib.md5/sha1`, `random`, `requests verify=False`, Flask debug, 硬编码密钥 | CWE-78, CWE-94, CWE-502, CWE-89, CWE-327, CWE-338, CWE-295, CWE-489, CWE-798 |
 
-这些规则是课程演示用的 explainable heuristic rules，不替代生产级 SAST；真正的 CI 安全扫描由 GitHub CodeQL 同时运行。
-
 ## 本地运行：推荐使用 just
 
 Arch/Crostini 安装：
@@ -75,8 +73,6 @@ tainted_sink.facts
 hardcoded_secret.facts
 weak_crypto.facts
 ```
-
-课堂讲法可以是：不同语言前端先抽取统一事实，例如 `unsafe_call`、`tainted_sink`、`weak_crypto`，再由 Soufflé 规则推导出跨语言 CWE 告警。
 
 ## GitHub Actions
 
@@ -142,3 +138,35 @@ just clean     # 清理生成物
 ### CodeQL multi-language workflow
 
 The workflow runs CodeQL in separate jobs: C/C++ and Java/Kotlin use `build-mode: none` so the classroom demo does not need a platform-specific build, while Python runs without `build-mode` because Python is analyzed directly from source.
+
+## Gemma diff 建议展示
+
+本项目支持一个 gemma 驱动的“辅助修复”流程：
+
+```bash
+just repair-demo
+```
+
+它会读取 `analysis/findings.json` 和对应源码上下文，请 Gemma/Gemini 输出 unified diff 候选，并生成：
+
+```text
+analysis/repair/gemma_diff_suggestions.md
+analysis/repair/gemma_diff_suggestions.json
+analysis/repair/suggested.patch
+```
+
+注意：这个流程只用于展示 **Gemma-assisted patch suggestion**，不会执行 `git apply`，不会修改工作区，也不会创建 Pull Request。GitHub Actions 会把 `gemma_diff_suggestions.md` 追加到 Job Summary。
+
+启用方式：在 GitHub 仓库的 `Settings -> Secrets and variables -> Actions` 中添加：
+
+```text
+GEMINI_API_KEY=<你的 Google AI Studio key>
+```
+
+可选覆盖模型：
+
+```text
+GEMINI_MODEL=gemma-4-31b-it
+```
+
+如果没有配置 `GEMINI_API_KEY`，该步骤会跳过；本地运行时会生成可复制到 AI Studio 的 prompt。

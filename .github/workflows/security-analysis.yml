@@ -85,6 +85,10 @@ jobs:
         if: ${{ env.GEMINI_API_KEY != '' }}
         run: just gemini
 
+      - name: Generate Gemma diff suggestions for classroom demo
+        if: ${{ env.GEMINI_API_KEY != '' }}
+        run: just repair-demo
+
       - name: Add CWE report to GitHub Actions summary
         if: always()
         run: |
@@ -113,6 +117,21 @@ jobs:
               echo
               echo 'Default model when enabled: `gemma-4-31b-it`. Override with repository variable `GEMINI_MODEL`.'
             fi
+
+            echo
+            echo "---"
+            echo
+            echo "## Gemma diff suggestions"
+            echo
+            if [[ -f analysis/repair/gemma_diff_suggestions.md ]]; then
+              cat analysis/repair/gemma_diff_suggestions.md
+            elif [[ -n "${GEMINI_API_KEY:-}" ]]; then
+              echo "_Gemma diff suggestion step was requested but no Markdown file was generated. Check the job log for API details._"
+            else
+              echo '_Gemma diff suggestions were skipped because repository secret `GEMINI_API_KEY` is not configured._'
+              echo
+              echo 'This demo mode only renders suggested unified diffs in the Actions Summary; it does not apply patches or create pull requests.'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload custom SARIF to code scanning
@@ -130,6 +149,9 @@ jobs:
             analysis/findings.json
             analysis/report.md
             analysis/gemini_report.md
+            analysis/repair/gemma_diff_suggestions.md
+            analysis/repair/gemma_diff_suggestions.json
+            analysis/repair/suggested.patch
             analysis/custom-cwe.sarif
             analysis/facts/*.facts
           if-no-files-found: warn

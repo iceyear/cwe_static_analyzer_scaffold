@@ -10,6 +10,10 @@ datalog_dir := "analysis/datalog"
 findings_json := "analysis/findings.json"
 report_md := "analysis/report.md"
 sarif := "analysis/custom-cwe.sarif"
+repair_dir := "analysis/repair"
+repair_md := "analysis/repair/gemma_diff_suggestions.md"
+repair_json := "analysis/repair/gemma_diff_suggestions.json"
+repair_patch := "analysis/repair/suggested.patch"
 
 # Show available commands
 _default:
@@ -43,6 +47,19 @@ gemini: analyze
     fi
     cat analysis/gemini_report.md
 
+# Generate Gemma/Gemini unified-diff suggestions for classroom summary display.
+# This does not apply patches and does not create a PR.
+repair-demo: analyze
+    mkdir -p {{repair_dir}}
+    if ! python scripts/gemma_diff_suggest.py {{findings_json}} --src {{src}} --out-md {{repair_md}} --out-json {{repair_json}} --out-patch {{repair_patch}}; then \
+      echo "# Gemma Diff Suggestions" > {{repair_md}}; \
+      echo >> {{repair_md}}; \
+      echo "Gemma/Gemini diff generation failed, but static analysis completed successfully. Check the job log for API details." >> {{repair_md}}; \
+      : > {{repair_patch}}; \
+      echo '{"title":"Gemma Diff Suggestions","summary":"generation failed","patches":[]}' > {{repair_json}}; \
+    fi
+    cat {{repair_md}}
+
 # One-command classroom demo: multi-language analyzer report + Datalog result
 demo: analyze
     @echo "\n===== CWE Markdown Report ====="
@@ -54,7 +71,7 @@ demo: analyze
 
 # Remove generated analysis outputs
 clean:
-    rm -rf {{findings_json}} {{sarif}} {{report_md}} {{facts_dir}} {{datalog_dir}} analysis/gemini_report.md
+    rm -rf {{findings_json}} {{sarif}} {{report_md}} {{facts_dir}} {{datalog_dir}} analysis/gemini_report.md {{repair_dir}}
 
 # Check that generated SARIF exists and is non-empty
 check: analyze
