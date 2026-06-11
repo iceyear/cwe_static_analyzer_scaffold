@@ -81,7 +81,9 @@ jobs:
       - name: Install Souffle from GitHub Release if available
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: scripts/install_souffle_ci.sh
+        run: |
+          chmod +x scripts/install_souffle_ci.sh
+          scripts/install_souffle_ci.sh
 
       - name: Run coursework analyzer through just
         run: just analyze
