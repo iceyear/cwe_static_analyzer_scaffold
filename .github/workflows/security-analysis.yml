@@ -78,6 +78,16 @@ jobs:
           fi
           just --version
 
+      - name: Install Souffle if available
+        run: |
+          if command -v souffle >/dev/null 2>&1; then
+            souffle --version
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y souffle || echo "Souffle package is not available on this runner; analyzer will use the Python fallback mirror of rules/cwe_rules.dl."
+          command -v souffle >/dev/null 2>&1 && souffle --version || true
+
       - name: Run coursework analyzer through just
         run: just analyze
 
@@ -96,6 +106,8 @@ jobs:
             echo "# Coursework CWE analyzer"
             echo
             echo "## Static analyzer report"
+            echo
+            echo "Pipeline: Python/AST/regex facts → Souffle Datalog inference if available → SARIF/Markdown. CodeQL runs in separate jobs for industrial baseline scanning."
             echo
             if [[ -f analysis/report.md ]]; then
               cat analysis/report.md
@@ -153,5 +165,7 @@ jobs:
             analysis/repair/gemma_diff_suggestions.json
             analysis/repair/suggested.patch
             analysis/custom-cwe.sarif
+            analysis/datalog/finding.csv
             analysis/facts/*.facts
+            analysis/facts/manifest.json
           if-no-files-found: warn

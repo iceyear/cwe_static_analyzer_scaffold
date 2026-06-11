@@ -1,59 +1,144 @@
-// Souffle Datalog rules for the demo analyzer.
-// Run after scripts/analyze_cwe.py has generated analysis/facts/*.facts:
+// Souffle Datalog rules for the formal CWE inference layer.
+// Front-end:  scripts/extract_facts.py
+// Back-end:   scripts/facts_to_results.py
+// Run manually:
+//   python scripts/extract_facts.py samples --facts analysis/facts
 //   souffle -F analysis/facts -D analysis/datalog rules/cwe_rules.dl
+//   python scripts/facts_to_results.py --datalog analysis/datalog/finding.csv --json analysis/findings.json --markdown analysis/report.md --sarif analysis/custom-cwe.sarif
 
 .decl array_decl(file:symbol, line:number, var:symbol, size:number)
 .input array_decl
 
-.decl unbounded_read(file:symbol, line:number, var:symbol, api:symbol)
+.decl unbounded_read(file:symbol, line:number, language:symbol, var:symbol, api:symbol, evidence:symbol)
 .input unbounded_read
 
-.decl unsafe_call(file:symbol, line:number, language:symbol, api:symbol, cwe:symbol)
+.decl unsafe_call(file:symbol, line:number, language:symbol, api:symbol, cwe:symbol, evidence:symbol)
 .input unsafe_call
 
-.decl untrusted_int(file:symbol, line:number, var:symbol, api:symbol)
+.decl untrusted_int(file:symbol, line:number, language:symbol, var:symbol, api:symbol, evidence:symbol)
 .input untrusted_int
 
-.decl var_as_bound(file:symbol, line:number, var:symbol, array:symbol, cap:number)
+.decl var_as_bound(file:symbol, line:number, language:symbol, var:symbol, array:symbol, cap:number, evidence:symbol)
 .input var_as_bound
 
-.decl tainted_sink(file:symbol, line:number, language:symbol, sink:symbol, cwe:symbol, kind:symbol)
+.decl tainted_sink(file:symbol, line:number, language:symbol, sink:symbol, cwe:symbol, kind:symbol, evidence:symbol)
 .input tainted_sink
 
-.decl hardcoded_secret(file:symbol, line:number, language:symbol, name:symbol)
+.decl hardcoded_secret(file:symbol, line:number, language:symbol, name:symbol, evidence:symbol)
 .input hardcoded_secret
 
-.decl weak_crypto(file:symbol, line:number, language:symbol, algorithm:symbol)
+.decl weak_crypto(file:symbol, line:number, language:symbol, algorithm:symbol, evidence:symbol)
 .input weak_crypto
 
-.decl finding(file:symbol, line:number, cwe:symbol, rule:symbol, message:symbol)
+.decl syntax_warning(file:symbol, line:number, language:symbol, message:symbol, evidence:symbol)
+.input syntax_warning
+
+// Final relation consumed by facts_to_results.py.
+.decl finding(file:symbol, line:number, language:symbol, cwe:symbol, rule:symbol, severity:symbol, message:symbol, evidence:symbol, recommendation:symbol)
 .output finding
 
-finding(file, line, "CWE-120/CWE-787", "datalog-unbounded-char-read", msg) :-
-  unbounded_read(file, line, var, api),
-  msg = cat(cat(cat("unbounded ", api), " read into fixed char buffer: "), var).
+// C/C++ fixed-buffer input and string APIs.
+finding(file, line, language, "CWE-120/CWE-787", "DEMO-CWE-120-CIN-CHAR-ARRAY", "error", msg, evidence, "Use std::string, std::setw(sizeof(buf)), or bounded parsing.") :-
+  unbounded_read(file, line, language, var, api, evidence),
+  msg = cat(cat(cat("Unbounded ", api), " read into fixed char buffer: "), var).
 
-finding(file, line, "CWE-120/CWE-787", "datalog-unsafe-strcpy", "strcpy may overflow destination buffer") :-
-  unsafe_call(file, line, _, "strcpy", _).
+finding(file, line, language, "CWE-120/CWE-787", "DEMO-CWE-120-STRCPY", "error", msg, evidence, "Use std::string, strncpy_s on Windows, or copy with explicit bounds and NUL termination.") :-
+  unsafe_call(file, line, language, "strcpy", "CWE-120/CWE-787", evidence),
+  msg = "strcpy can overflow a destination buffer because it does not know the destination capacity.".
 
-finding(file, line, "CWE-20/CWE-787", "datalog-input-bound", msg) :-
-  var_as_bound(file, line, var, array, cap),
-  msg = cat(cat(cat(cat("unvalidated input ", var), " controls index into "), array), cat(" capacity=", to_string(cap))).
+finding(file, line, language, "CWE-120/CWE-787", "DEMO-CWE-120-STRCPY", "error", msg, evidence, "Use std::string, strncpy_s on Windows, or copy with explicit bounds and NUL termination.") :-
+  unsafe_call(file, line, language, "strcat", "CWE-120/CWE-787", evidence),
+  msg = "strcat can overflow a destination buffer because it does not know the destination capacity.".
 
-finding(file, line, cwe, "datalog-tainted-sink", msg) :-
-  tainted_sink(file, line, language, sink, cwe, kind),
-  msg = cat(cat(cat(cat(language, " "), kind), " sink: "), sink).
+finding(file, line, language, "CWE-120/CWE-787", "DEMO-CWE-120-STRCPY", "error", msg, evidence, "Use std::string, strncpy_s on Windows, or copy with explicit bounds and NUL termination.") :-
+  unsafe_call(file, line, language, "sprintf", "CWE-120/CWE-787", evidence),
+  msg = "sprintf can overflow a destination buffer because it does not know the destination capacity.".
 
-finding(file, line, cwe, "datalog-unsafe-api", msg) :-
-  unsafe_call(file, line, language, api, cwe),
-  api != "strcpy",
-  api != "hardcoded-secret",
-  msg = cat(cat(cat(language, " security-sensitive API call: "), api), cat(" => ", cwe)).
+finding(file, line, language, "CWE-120/CWE-787", "DEMO-CWE-120-STRCPY", "error", msg, evidence, "Use std::string, strncpy_s on Windows, or copy with explicit bounds and NUL termination.") :-
+  unsafe_call(file, line, language, "gets", "CWE-120/CWE-787", evidence),
+  msg = "gets can overflow a destination buffer because it does not know the destination capacity.".
 
-finding(file, line, "CWE-798/CWE-259", "datalog-hardcoded-secret", msg) :-
-  hardcoded_secret(file, line, language, name),
-  msg = cat(cat(cat(language, " hard-coded secret-like variable: "), name), " should come from a secret manager").
+finding(file, line, language, "CWE-20/CWE-252", "DEMO-CWE-20-SCANF-RETURN", "warning", "scanf return value is ignored, so invalid input may leave the destination variable unchanged.", evidence, "Check scanf's return value and reject invalid input.") :-
+  unsafe_call(file, line, language, "scanf-unchecked-return", "CWE-20/CWE-252", evidence).
 
-finding(file, line, "CWE-327/CWE-328", "datalog-weak-crypto", msg) :-
-  weak_crypto(file, line, language, algorithm),
-  msg = cat(cat(cat(language, " weak crypto algorithm: "), algorithm), " should be replaced with a modern primitive").
+finding(file, line, language, "CWE-20/CWE-787", "DEMO-CWE-787-INPUT-BOUND", "error", msg, evidence, "Validate the input range before it controls array access.") :-
+  var_as_bound(file, line, language, var, array, cap, evidence),
+  msg = cat(cat(cat(cat("User-controlled value ", var), " controls access to fixed array "), array), cat(" with capacity ", to_string(cap))).
+
+finding(file, line, language, "CWE-330", "DEMO-CWE-330-RAND", "note", "rand() is predictable and is not suitable for security-sensitive randomness.", evidence, "Use a CSPRNG for security; if this is only simulation data, document that it is non-security randomness.") :-
+  unsafe_call(file, line, language, "rand", "CWE-330", evidence).
+
+finding(file, line, language, "CWE-362/CWE-667", "DEMO-CWE-362-THREAD", "warning", msg, evidence, "Prefer cooperative cancellation, joins, condition variables, and scoped locks.") :-
+  unsafe_call(file, line, language, api, "CWE-362/CWE-667", evidence),
+  msg = cat(api, " can leave shared state inconsistent and is race-prone.").
+
+// Java sinks.
+finding(file, line, language, "CWE-78", "DEMO-CWE-78-JAVA-EXEC", "error", "Java command execution sink may execute user-controlled commands.", evidence, "Avoid shell command construction; use allow-lists and pass fixed argv arrays.") :-
+  tainted_sink(file, line, language, _, "CWE-78", "command-execution", evidence),
+  language = "Java".
+
+finding(file, line, language, "CWE-89", "DEMO-CWE-89-JAVA-SQL-CONCAT", "error", "Java SQL string is dynamically constructed and may allow SQL injection.", evidence, "Use PreparedStatement with bind parameters instead of string concatenation.") :-
+  tainted_sink(file, line, language, _, "CWE-89", "sql", evidence),
+  language = "Java".
+
+finding(file, line, language, "CWE-502", "DEMO-CWE-502-JAVA-DESERIALIZATION", "warning", "ObjectInputStream/readObject may deserialize attacker-controlled objects.", evidence, "Avoid native Java deserialization for untrusted data; use safe formats and object filters.") :-
+  unsafe_call(file, line, language, "ObjectInputStream/readObject", "CWE-502", evidence),
+  language = "Java".
+
+finding(file, line, language, "CWE-338/CWE-330", "DEMO-CWE-330-JAVA-RANDOM", "warning", "java.util.Random/Math.random are predictable for security-sensitive tokens.", evidence, "Use java.security.SecureRandom for secrets, session IDs, reset tokens, and nonces.") :-
+  unsafe_call(file, line, language, "java.util.Random/Math.random", "CWE-338/CWE-330", evidence),
+  language = "Java".
+
+finding(file, line, language, "CWE-22", "DEMO-CWE-22-JAVA-PATH", "warning", "User-controlled input appears to influence a file path.", evidence, "Canonicalize paths, enforce a safe base directory, and reject traversal sequences.") :-
+  tainted_sink(file, line, language, _, "CWE-22", "path", evidence),
+  language = "Java".
+
+// Python sinks.
+finding(file, line, language, "CWE-78", "DEMO-CWE-78-PY-SHELL", "error", "Python command execution sink can execute user-controlled commands.", evidence, "Avoid shell=True; pass fixed argument lists and validate user-controlled values.") :-
+  tainted_sink(file, line, language, _, "CWE-78", "command-execution", evidence),
+  language = "Python".
+
+finding(file, line, language, "CWE-94/CWE-95", "DEMO-CWE-94-PY-EVAL", "error", "eval/exec/compile executes code represented as data.", evidence, "Use safe parsers such as json.loads or ast.literal_eval, and never evaluate untrusted input.") :-
+  unsafe_call(file, line, language, api, "CWE-94/CWE-95", evidence),
+  language = "Python".
+
+finding(file, line, language, "CWE-502", "DEMO-CWE-502-PY-DESERIALIZATION", "warning", "pickle/marshal/yaml.load can deserialize or construct unsafe objects.", evidence, "Avoid pickle/marshal for untrusted data; use yaml.safe_load or a strict JSON schema.") :-
+  unsafe_call(file, line, language, api, "CWE-502", evidence),
+  language = "Python".
+
+finding(file, line, language, "CWE-89", "DEMO-CWE-89-PY-SQL-DYNAMIC", "error", "SQL passed to execute() is dynamically constructed.", evidence, "Use parameterized queries instead of f-strings, %, format(), or string concatenation.") :-
+  tainted_sink(file, line, language, _, "CWE-89", "sql", evidence),
+  language = "Python".
+
+finding(file, line, language, "CWE-338/CWE-330", "DEMO-CWE-338-PY-RANDOM", "warning", "Python random module output is predictable for security-sensitive secrets.", evidence, "Use secrets.token_urlsafe/token_bytes or os.urandom for security-sensitive randomness.") :-
+  unsafe_call(file, line, language, api, "CWE-338/CWE-330", evidence),
+  language = "Python".
+
+finding(file, line, language, "CWE-295", "DEMO-CWE-295-PY-VERIFY-FALSE", "warning", "verify=False disables TLS certificate validation.", evidence, "Remove verify=False and install/trust the proper CA certificate instead.") :-
+  unsafe_call(file, line, language, "requests verify=False", "CWE-295", evidence),
+  language = "Python".
+
+finding(file, line, language, "CWE-489/CWE-215", "DEMO-CWE-489-PY-DEBUG", "warning", "Debug mode can leak sensitive internals in production.", evidence, "Disable debug mode outside local development.") :-
+  unsafe_call(file, line, language, api, "CWE-489/CWE-215", evidence),
+  language = "Python".
+
+// Shared multi-language rules.
+finding(file, line, "Java", "CWE-327/CWE-328", "DEMO-CWE-327-JAVA-WEAK-CRYPTO", "warning", msg, evidence, "Use modern algorithms such as SHA-256/HMAC-SHA-256, bcrypt, scrypt, or Argon2 as appropriate.") :-
+  weak_crypto(file, line, "Java", algorithm, evidence),
+  msg = cat("Java weak cryptographic algorithm: ", algorithm).
+
+finding(file, line, "Python", "CWE-327/CWE-328", "DEMO-CWE-327-PY-WEAK-HASH", "warning", msg, evidence, "Use SHA-256/HMAC or a password hashing scheme such as bcrypt/scrypt/Argon2 as appropriate.") :-
+  weak_crypto(file, line, "Python", algorithm, evidence),
+  msg = cat("Python weak cryptographic algorithm: ", algorithm).
+
+finding(file, line, language, "CWE-798/CWE-259", "DEMO-CWE-798-HARDCODED-SECRET", "warning", msg, evidence, "Move secrets to a secret manager or CI secret, and rotate exposed credentials.") :-
+  hardcoded_secret(file, line, language, name, evidence),
+  msg = cat(cat(language, " hard-coded secret-like variable: "), name).
+
+finding(file, line, language, "CWE-398", "DEMO-CWE-398-BUILD-BUG", "note", message, evidence, "Fix the typo and add CI compilation checks.") :-
+  syntax_warning(file, line, language, message, evidence),
+  language != "Python".
+
+finding(file, line, language, "CWE-20", "DEMO-CWE-20-SYNTAX-PARSE", "warning", message, evidence, "Fix syntax errors so static analysis tools can reason about the file accurately.") :-
+  syntax_warning(file, line, language, message, evidence),
+  language = "Python".
