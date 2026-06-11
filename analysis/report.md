@@ -2,7 +2,7 @@
 
 共发现 **40** 个告警。
 
-推理后端：`souffle`
+推理后端：`python-fallback-equivalent-to-souffle-rules`
 
 ## 汇总
 
@@ -193,7 +193,7 @@
 - 语言：`C/C++`
 - 规则：`DEMO-CWE-787-INPUT-BOUND`
 - 严重性：`error`
-- 说明：User-controlled value nums controls access to fixed array stack with capacity 7
+- 说明：User-controlled value nums controls access to fixed array stack with capacity 7.
 - 证据：`for(j=0;j<nums;j++)`
 - 建议：Validate the input range before it controls array access.
 
@@ -202,7 +202,7 @@
 - 语言：`C/C++`
 - 规则：`DEMO-CWE-787-INPUT-BOUND`
 - 严重性：`error`
-- 说明：User-controlled value nums controls access to fixed array numbers with capacity 20
+- 说明：User-controlled value nums controls access to fixed array numbers with capacity 20.
 - 证据：`for(m=0;m<nums;m++)`
 - 建议：Validate the input range before it controls array access.
 
@@ -211,7 +211,7 @@
 - 语言：`C/C++`
 - 规则：`DEMO-CWE-787-INPUT-BOUND`
 - 严重性：`error`
-- 说明：User-controlled value nums controls access to fixed array sequence with capacity 7
+- 说明：User-controlled value nums controls access to fixed array sequence with capacity 7.
 - 证据：`for(j=0;j<nums;j++)`
 - 建议：Validate the input range before it controls array access.
 
@@ -220,7 +220,7 @@
 - 语言：`C/C++`
 - 规则：`DEMO-CWE-787-INPUT-BOUND`
 - 严重性：`error`
-- 说明：User-controlled value nums controls access to fixed array seq with capacity 7
+- 说明：User-controlled value nums controls access to fixed array seq with capacity 7.
 - 证据：`for(j=0;j<nums;j++)`
 - 建议：Validate the input range before it controls array access.
 

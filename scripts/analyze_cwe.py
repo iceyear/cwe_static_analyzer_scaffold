@@ -51,8 +51,8 @@ def main() -> int:
         except subprocess.CalledProcessError:
             print("Souffle failed; falling back to Python rule mirror.", file=sys.stderr)
             engine = "python-fallback-after-souffle-failure"
-            run([sys.executable, "scripts/facts_to_results.py", "--facts", str(facts_dir), "--datalog", str(finding_csv), "--fallback", "--json", args.json, "--markdown", args.markdown, "--sarif", args.sarif], check=False)
-            return 1
+            proc = run([sys.executable, "scripts/facts_to_results.py", "--facts", str(facts_dir), "--datalog", str(finding_csv), "--fallback", "--engine", engine, "--json", args.json, "--markdown", args.markdown, "--sarif", args.sarif], check=False)
+            return proc.returncode
     else:
         reason = "disabled" if args.no_souffle else "not installed"
         print(f"Souffle {reason}; using Python fallback that mirrors rules/cwe_rules.dl.")

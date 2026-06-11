@@ -120,8 +120,6 @@ analysis/report.md
 analysis/custom-cwe.sarif
 ```
 
-课堂答辩时可以这样说明：fallback 只是为了演示稳定；形式化规则的权威表达位于 `rules/cwe_rules.dl`。
-
 ## 常用 just 命令
 
 ```bash
@@ -151,6 +149,19 @@ just clean             # 清理生成物
 7. 上传 `analysis/custom-cwe.sarif` 到 GitHub Code Scanning 页面。
 
 CodeQL 的具体告警主要在 **Security → Code scanning** 查看；Actions Summary 展示的是自研 facts/Datalog 推理和 Gemma 解释/修复建议。
+
+### GitHub Actions 中安装 Soufflé
+
+GitHub Hosted Runner 的默认 Ubuntu apt 源通常没有 `souffle` 包；workflow 会先加入 Soufflé 官方 apt 仓库，再尝试安装：
+
+```bash
+sudo wget https://souffle-lang.github.io/ppa/souffle-key.public -O /usr/share/keyrings/souffle-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/souffle-archive-keyring.gpg] https://souffle-lang.github.io/ppa/ubuntu/ stable main" | sudo tee /etc/apt/sources.list.d/souffle.list
+sudo apt-get update
+sudo apt-get install -y souffle
+```
+
+如果安装失败，CI 会自动退回 Python fallback；如果安装成功，报告里的推理后端会显示为 `souffle`。
 
 ## Gemini / Gemma 报告
 
