@@ -138,3 +138,7 @@ just clean     # 清理生成物
 ## Gemini/Gemma API note
 
 `just gemini` defaults to `gemma-4-31b-it` when `GEMINI_MODEL` is not set. It uses the REST-compatible JSON generation fields `responseMimeType` and `responseJsonSchema` first, then falls back to prompt-only JSON if a specific model rejects structured output. The deprecated/incorrect `generationConfig.responseFormat.text.mimeType = "application/json"` form is intentionally not used.
+
+### CodeQL multi-language workflow
+
+The workflow runs CodeQL in separate jobs: C/C++ and Java/Kotlin use `build-mode: none` so the classroom demo does not need a platform-specific build, while Python runs without `build-mode` because Python is analyzed directly from source.

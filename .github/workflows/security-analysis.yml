@@ -14,19 +14,48 @@ permissions:
   actions: read
 
 jobs:
-  codeql:
-    name: CodeQL C/C++
+  codeql-compiled:
+    name: CodeQL ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: c-cpp
+            category: /language:c-cpp
+          - language: java-kotlin
+            category: /language:java-kotlin
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Initialize CodeQL for ${{ matrix.language }}
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Perform CodeQL analysis for ${{ matrix.language }}
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: ${{ matrix.category }}
+
+  codeql-python:
+    name: CodeQL python
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: github/codeql-action/init@v4
+
+      - name: Initialize CodeQL for python
+        uses: github/codeql-action/init@v4
         with:
-          languages: c-cpp
-          build-mode: none
+          languages: python
           config-file: ./.github/codeql/codeql-config.yml
-      - uses: github/codeql-action/analyze@v4
+
+      - name: Perform CodeQL analysis for python
+        uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:c-cpp"
+          category: /language:python
 
   custom-cwe:
     name: Coursework CWE analyzer
