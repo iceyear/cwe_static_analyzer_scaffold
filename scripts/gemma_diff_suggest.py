@@ -260,7 +260,6 @@ def combined_patch(obj: dict[str, Any]) -> str:
 def render_markdown(obj: dict[str, Any], model: str) -> str:
     lines: list[str] = ["# Gemma Diff Suggestions", "", f"> Model: `{model}`", ""]
     lines.append(str(obj.get("summary") or "Gemma generated patch candidates for classroom review."))
-    lines += ["", "> 这些 diff 仅用于课堂演示和人工 review；CI 不会自动应用，也不会创建 PR。", ""]
 
     patches = obj.get("patches", [])
     if not patches:
