@@ -8,7 +8,7 @@
 .decl unbounded_read(file:symbol, line:number, var:symbol, api:symbol)
 .input unbounded_read
 
-.decl unsafe_call(file:symbol, line:number, api:symbol, cwe:symbol)
+.decl unsafe_call(file:symbol, line:number, language:symbol, api:symbol, cwe:symbol)
 .input unsafe_call
 
 .decl untrusted_int(file:symbol, line:number, var:symbol, api:symbol)
@@ -16,6 +16,15 @@
 
 .decl var_as_bound(file:symbol, line:number, var:symbol, array:symbol, cap:number)
 .input var_as_bound
+
+.decl tainted_sink(file:symbol, line:number, language:symbol, sink:symbol, cwe:symbol, kind:symbol)
+.input tainted_sink
+
+.decl hardcoded_secret(file:symbol, line:number, language:symbol, name:symbol)
+.input hardcoded_secret
+
+.decl weak_crypto(file:symbol, line:number, language:symbol, algorithm:symbol)
+.input weak_crypto
 
 .decl finding(file:symbol, line:number, cwe:symbol, rule:symbol, message:symbol)
 .output finding
@@ -25,13 +34,26 @@ finding(file, line, "CWE-120/CWE-787", "datalog-unbounded-char-read", msg) :-
   msg = cat(cat(cat("unbounded ", api), " read into fixed char buffer: "), var).
 
 finding(file, line, "CWE-120/CWE-787", "datalog-unsafe-strcpy", "strcpy may overflow destination buffer") :-
-  unsafe_call(file, line, "strcpy", _).
+  unsafe_call(file, line, _, "strcpy", _).
 
 finding(file, line, "CWE-20/CWE-787", "datalog-input-bound", msg) :-
   var_as_bound(file, line, var, array, cap),
   msg = cat(cat(cat(cat("unvalidated input ", var), " controls index into "), array), cat(" capacity=", to_string(cap))).
 
+finding(file, line, cwe, "datalog-tainted-sink", msg) :-
+  tainted_sink(file, line, language, sink, cwe, kind),
+  msg = cat(cat(cat(cat(language, " "), kind), " sink: "), sink).
+
 finding(file, line, cwe, "datalog-unsafe-api", msg) :-
-  unsafe_call(file, line, api, cwe),
+  unsafe_call(file, line, language, api, cwe),
   api != "strcpy",
-  msg = cat("security-sensitive API call: ", api).
+  api != "hardcoded-secret",
+  msg = cat(cat(cat(language, " security-sensitive API call: "), api), cat(" => ", cwe)).
+
+finding(file, line, "CWE-798/CWE-259", "datalog-hardcoded-secret", msg) :-
+  hardcoded_secret(file, line, language, name),
+  msg = cat(cat(cat(language, " hard-coded secret-like variable: "), name), " should come from a secret manager").
+
+finding(file, line, "CWE-327/CWE-328", "datalog-weak-crypto", msg) :-
+  weak_crypto(file, line, language, algorithm),
+  msg = cat(cat(cat(language, " weak crypto algorithm: "), algorithm), " should be replaced with a modern primitive").

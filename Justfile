@@ -19,7 +19,7 @@ _default:
 setup-arch:
     sudo pacman -S --needed python just souffle
 
-# Run the coursework CWE analyzer and generate JSON, Markdown, SARIF, and Souffle facts
+# Run the multi-language coursework CWE analyzer and generate JSON, Markdown, SARIF, and Souffle facts
 analyze:
     mkdir -p {{analysis_dir}}
     python scripts/analyze_cwe.py {{src}} --json {{findings_json}} --markdown {{report_md}} --sarif {{sarif}} --facts {{facts_dir}} || true
@@ -43,7 +43,7 @@ gemini: analyze
     fi
     cat analysis/gemini_report.md
 
-# One-command classroom demo: analyzer report + Datalog result
+# One-command classroom demo: multi-language analyzer report + Datalog result
 demo: analyze
     @echo "\n===== CWE Markdown Report ====="
     cat {{report_md}}
