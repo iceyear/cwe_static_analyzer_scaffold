@@ -169,4 +169,11 @@ GEMINI_API_KEY=<你的 Google AI Studio key>
 GEMINI_MODEL=gemma-4-31b-it
 ```
 
+Gemma diff 演示默认会从每种检测到的语言里各选 2 条可修复 finding，避免 C/C++ 样例数量较多时把 Java/Python 挤出 prompt。也可以调整：
+
+```text
+GEMMA_PATCH_LIMIT=9          # 总候选数量
+GEMMA_PATCH_PER_LANGUAGE=3   # 每种语言优先保留的候选数量
+```
+
 如果没有配置 `GEMINI_API_KEY`，该步骤会跳过；本地运行时会生成可复制到 AI Studio 的 prompt。

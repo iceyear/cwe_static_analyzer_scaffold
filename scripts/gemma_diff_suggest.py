@@ -16,6 +16,7 @@ Environment:
   GEMINI_MODEL          Defaults to gemma-4-31b-it.
   GEMINI_STRICT=1       Exit non-zero on API/parsing errors. Default is fail-open.
   GEMMA_PATCH_LIMIT     Max findings to send. Default: 6.
+  GEMMA_PATCH_PER_LANGUAGE  Minimum balanced findings per language. Default: 2.
 """
 from __future__ import annotations
 
@@ -97,26 +98,83 @@ def load_findings(path: Path) -> list[dict[str, Any]]:
     return []
 
 
-def pick_findings(findings: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+def finding_sort_key(f: dict[str, Any]) -> tuple[int, str, int, str]:
+    return (
+        SEVERITY_RANK.get(str(f.get("severity", "info")), 9),
+        str(f.get("file", "")),
+        int(f.get("line") or 0),
+        str(f.get("rule_id", "")),
+    )
+
+
+def finding_dedupe_key(f: dict[str, Any]) -> tuple[str, int, str, str]:
+    return (
+        str(f.get("file", "")),
+        int(f.get("line") or 0),
+        str(f.get("cwe", "")),
+        str(f.get("rule_id", "")),
+    )
+
+
+def pick_findings(findings: list[dict[str, Any]], limit: int, per_language: int = 2) -> list[dict[str, Any]]:
+    """Pick patch candidates while keeping classroom demos multi-language.
+
+    The old implementation sorted all findings globally. Because the coursework C/C++
+    sample has many high-severity findings and its file names sort first, the first
+    six candidates were often all C/C++. This balanced picker keeps at least a small
+    quota per detected language, then fills the remaining slots by severity.
+    """
+
     def patchable(f: dict[str, Any]) -> bool:
         cwe = str(f.get("cwe", ""))
         rule = str(f.get("rule_id", ""))
         return any(k in cwe or k in rule for k in PATCHABLE_KEYWORDS)
 
-    chosen = [f for f in findings if patchable(f)] or findings
-    chosen.sort(key=lambda f: (SEVERITY_RANK.get(str(f.get("severity", "info")), 9), str(f.get("file", "")), int(f.get("line") or 0)))
+    pool = [f for f in findings if patchable(f)] or findings
+    pool = sorted(pool, key=finding_sort_key)
 
-    # Deduplicate by file + line + CWE to keep the prompt compact.
+    preferred_languages = ["C/C++", "Java", "Python"]
+    discovered = []
+    for f in pool:
+        lang = str(f.get("language") or "Unknown")
+        if lang not in discovered:
+            discovered.append(lang)
+    languages = [lang for lang in preferred_languages if lang in discovered] + [
+        lang for lang in discovered if lang not in preferred_languages
+    ]
+
     result: list[dict[str, Any]] = []
-    seen: set[tuple[str, int, str]] = set()
-    for f in chosen:
-        key = (str(f.get("file", "")), int(f.get("line") or 0), str(f.get("cwe", "")))
+    seen: set[tuple[str, int, str, str]] = set()
+
+    def add_candidate(f: dict[str, Any]) -> bool:
+        if len(result) >= limit:
+            return False
+        key = finding_dedupe_key(f)
         if key in seen:
-            continue
+            return False
         seen.add(key)
         result.append(f)
+        return True
+
+    # First pass: ensure each language appears in the Gemma diff demo when possible.
+    quota = max(0, per_language)
+    if quota:
+        for lang in languages:
+            added = 0
+            for f in pool:
+                if str(f.get("language") or "Unknown") != lang:
+                    continue
+                if add_candidate(f):
+                    added += 1
+                if added >= quota or len(result) >= limit:
+                    break
+
+    # Second pass: fill remaining prompt budget with the most severe findings.
+    for f in pool:
         if len(result) >= limit:
             break
+        add_candidate(f)
+
     return result
 
 
@@ -304,13 +362,14 @@ def main() -> int:
     parser.add_argument("--out-json", default="analysis/repair/gemma_diff_suggestions.json")
     parser.add_argument("--out-patch", default="analysis/repair/suggested.patch")
     parser.add_argument("--limit", type=int, default=int(os.environ.get("GEMMA_PATCH_LIMIT", "6")))
+    parser.add_argument("--per-language", type=int, default=int(os.environ.get("GEMMA_PATCH_PER_LANGUAGE", "2")), help="Balanced candidates per detected language. Default: 2")
     args = parser.parse_args()
 
     model = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
     strict = os.environ.get("GEMINI_STRICT", "").lower() in {"1", "true", "yes"}
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
 
-    findings = pick_findings(load_findings(Path(args.findings)), max(1, args.limit))
+    findings = pick_findings(load_findings(Path(args.findings)), max(1, args.limit), max(0, args.per_language))
     cases = build_cases(Path(args.src), findings)
     prompt = build_prompt(cases)
 
